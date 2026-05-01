@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Analysis History — ResumeForge{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;" class="mb-1">Analysis History</h1>
+        <p class="text-muted mb-0">{{ analyses|length }} total analyses saved</p>
+    </div>
+    <a href="{{ url_for('analyze_page') }}" class="btn btn-primary-semo">
+        <i class="bi bi-plus-lg me-1"></i>New Analysis
+    </a>
+</div>
+
+{% if analyses %}
+<div class="rf-card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead style="background:#f8f9fa;font-size:0.82rem;text-transform:uppercase;letter-spacing:0.5px;color:#888;">
+                <tr>
+                    <th class="px-4 py-3">Job / Role</th>
+                    <th>Score</th>
+                    <th>Matched</th>
+                    <th>Missing</th>
+                    <th>Hard Skills</th>
+                    <th>Date</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in analyses %}
+                <tr>
+                    <td class="px-4 py-3 fw-medium" style="font-size:0.9rem;">{{ a.job_title or 'Untitled' }}</td>
+                    <td>
+                        <span class="fw-bold" style="font-family:'Space Grotesk',sans-serif;color:{% if a.score >= 70 %}#198754{% elif a.score >= 40 %}#fd7e14{% else %}#dc3545{% endif %};">
+                            {{ a.score }}%
+                        </span>
+                    </td>
+                    <td><span class="text-success fw-medium">{{ a.matched_count }}</span></td>
+                    <td><span class="text-danger fw-medium">{{ a.missing_count }}</span></td>
+                    <td>
+                        {% if a.hard_skills_score is not none %}
+                            <div class="progress" style="height:6px;width:80px;">
+                                <div class="progress-bar {% if a.hard_skills_score >= 70 %}bg-success{% elif a.hard_skills_score >= 40 %}bg-warning{% else %}bg-danger{% endif %}"
+                                     style="width:{{ a.hard_skills_score }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ a.hard_skills_score }}%</small>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="text-muted" style="font-size:0.82rem;">{{ a.created_at.strftime('%b %d, %Y') }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('delete_analysis', analysis_id=a.id) }}"
+                              onsubmit="return confirm('Delete this analysis?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger border-0">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="rf-card p-5 text-center">
+    <i class="bi bi-clock-history text-muted fs-1 mb-3 d-block"></i>
+    <p class="text-muted mb-3">No saved analyses yet.</p>
+    <a href="{{ url_for('analyze_page') }}" class="btn btn-primary-semo">Run First Analysis</a>
+</div>
+{% endif %}
+{% endblock %}

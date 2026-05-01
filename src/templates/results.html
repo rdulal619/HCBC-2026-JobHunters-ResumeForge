@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% block title %}Resume Scan Results — ResumeForge{% endblock %}
+{% block extra_head %}
+<style>
+/* ── Layout ── */
+.results-wrap { display:flex; gap:24px; align-items:flex-start; }
+.sidebar { width:240px; flex-shrink:0; position:sticky; top:80px; }
+.main-content { flex:1; min-width:0; }
+
+/* ── Score circle ── */
+.score-ring { position:relative; width:160px; height:160px; margin:0 auto 1rem; }
+.score-ring svg { transform:rotate(-90deg); }
+.score-ring .score-text { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
+.score-num { font-family:'Space Grotesk',sans-serif; font-size:2.4rem; font-weight:700; line-height:1; }
+.score-pct { font-size:1rem; font-weight:600; }
+
+/* ── Sidebar nav ── */
+.sidebar-section { padding:10px 14px; border-radius:10px; margin-bottom:6px; cursor:pointer; transition:all 0.15s; border:1px solid transparent; }
+.sidebar-section:hover { background:#f8f9fa; }
+.sidebar-section.active { background:#fff; border-color:var(--border); box-shadow:0 1px 4px rgba(0,0,0,0.06); }
+.sidebar-label { font-size:0.82rem; font-weight:600; color:var(--semo-black); }
+.sidebar-issues { font-size:0.75rem; font-weight:500; }
+.sidebar-bar { height:4px; border-radius:4px; margin-top:6px; }
+
+/* ── Section cards ── */
+.report-section { margin-bottom:28px; scroll-margin-top:80px; }
+.section-header { display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+.section-title { font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.15rem; }
+.impact-badge { font-size:0.68rem; font-weight:700; padding:3px 9px; border-radius:12px; text-transform:uppercase; letter-spacing:0.5px; }
+.impact-high   { background:#ffeeba; color:#856404; }
+.impact-medium { background:#d1ecf1; color:#0c5460; }
+.section-tip { background:#fffbf0; border-left:3px solid #ffc107; padding:10px 14px; border-radius:0 8px 8px 0; font-size:0.85rem; color:#555; margin-bottom:16px; }
+
+/* ── Check rows ── */
+.check-row { display:flex; align-items:flex-start; gap:12px; padding:12px 0; border-bottom:1px solid #f0f2f5; }
+.check-row:last-child { border-bottom:none; }
+.check-icon { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.75rem; font-weight:700; margin-top:1px; }
+.check-pass { background:#d1e7dd; color:#0a5e0a; }
+.check-fail { background:#f8d7da; color:#721c24; }
+.check-warn { background:#fff3cd; color:#856404; }
+.check-label { font-weight:600; font-size:0.88rem; }
+.check-detail { font-size:0.82rem; color:#666; margin-top:2px; }
+
+/* ── Skills table ── */
+.skills-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+.skills-table th { background:#f8f9fa; padding:10px 14px; text-align:left; font-weight:600; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.4px; color:#888; border-bottom:2px solid var(--border); }
+.skills-table td { padding:9px 14px; border-bottom:1px solid #f0f2f5; vertical-align:middle; }
+.skills-table tr:hover td { background:#fafbfc; }
+.skill-name { font-weight:500; }
+.skill-present { color:#198754; font-weight:700; }
+.skill-missing { color:#dc3545; font-weight:700; }
+.freq-bar { display:inline-block; height:6px; border-radius:3px; background:var(--semo-red); min-width:4px; }
+.cat-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
+.cat-hard { background:#3b8ae6; }
+.cat-soft { background:#27ae60; }
+.cat-tool { background:#f39c12; }
+.cat-cert { background:#9b59b6; }
+.cat-other { background:#95a5a6; }
+
+/* ── Action bar ── */
+.action-bar { background:#fff; border:1px solid var(--border); border-radius:14px; padding:1.25rem 1.5rem; margin-bottom:24px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+
+/* ── Responsive ── */
+@media(max-width:900px) {
+    .results-wrap { flex-direction:column; }
+    .sidebar { width:100%; position:static; }
+}
+</style>
+{% endblock %}
+{% block content %}
+
+{% set score = r.score %}
+{% set sc_color = '#198754' if score >= 70 else '#fd7e14' if score >= 40 else '#dc3545' %}
+{% set sc_label = 'Strong Match' if score >= 70 else 'Moderate Match' if score >= 40 else 'Needs Work' %}
+
+<!-- Top action bar -->
+<div class="action-bar">
+    <div class="me-2">
+        <div class="fw-bold" style="font-family:'Space Grotesk',sans-serif;font-size:0.95rem;">Resume Scan Results</div>
+        <div class="text-muted" style="font-size:0.8rem;">ATS keyword analysis · TF-IDF weighted · section detection</div>
+    </div>
+    <div class="d-flex gap-2 ms-auto flex-wrap">
+        <a href="{{ url_for('analyze_page') }}" class="btn btn-sm btn-outline-semo">
+            <i class="bi bi-arrow-repeat me-1"></i>Upload & Rescan
+        </a>
+        <a href="{{ url_for('upgrade') }}" class="btn btn-sm btn-primary-semo">
+            <i class="bi bi-magic me-1"></i>Optimize Resume
+        </a>
+        <a href="{{ url_for('download_report') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-printer me-1"></i>Export PDF
+        </a>
+    </div>
+</div>
+
+<div class="results-wrap">
+<!-- ── SIDEBAR ── -->
+<div class="sidebar">
+    <div class="rf-card p-3 mb-3 text-center">
+        <!-- Score ring -->
+        <div class="score-ring">
+            {% set circumference = 3.14159 * 2 * 54 %}
+            {% set offset = circumference * (1 - score / 100) %}
+            <svg width="160" height="160" viewBox="0 0 160 160">
+                <circle cx="80" cy="80" r="54" fill="none" stroke="#f0f2f5" stroke-width="14"/>
+                <circle cx="80" cy="80" r="54" fill="none" stroke="{{ sc_color }}" stroke-width="14"
+                        stroke-dasharray="{{ circumference }}" stroke-dashoffset="{{ offset }}"
+                        stroke-linecap="round"/>
+            </svg>
+            <div class="score-text">
+                <div class="score-num" style="color:{{ sc_color }}">{{ score }}</div>
+                <div class="score-pct" style="color:{{ sc_color }}">%</div>
+            </div>
+        </div>
+        <div class="fw-bold" style="color:{{ sc_color }};font-size:0.95rem;">{{ sc_label }}</div>
+        <div class="text-muted mt-1" style="font-size:0.75rem;">Match Rate</div>
+    </div>
+
+    <!-- Sidebar nav sections -->
+    {% set sections_nav = [
+        ('searchability', 'Searchability', r.searchability_issues, r.searchability_warns, '#3b8ae6'),
+        ('hard-skills', 'Hard Skills', r.hard_skill_issues, 0, '#dc3545'),
+        ('soft-skills', 'Soft Skills', r.soft_skill_issues, 0, '#6c757d'),
+        ('recruiter-tips', 'Recruiter Tips', r.recruiter_issues, 0, '#198754'),
+        ('skills-comparison', 'Skills Comparison', 0, 0, '#888'),
+    ] %}
+    {% for sec_id, sec_label, issues, warns, color in sections_nav %}
+    <div class="sidebar-section" onclick="document.getElementById('{{ sec_id }}').scrollIntoView({behavior:'smooth'})">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="sidebar-label">{{ sec_label }}</span>
+            {% if issues > 0 %}
+            <span class="sidebar-issues text-danger">{{ issues }} issue{{ 's' if issues != 1 }}</span>
+            {% elif warns > 0 %}
+            <span class="sidebar-issues text-warning">{{ warns }} tip{{ 's' if warns != 1 }}</span>
+            {% else %}
+            <span class="sidebar-issues text-success">✓</span>
+            {% endif %}
+        </div>
+        <div class="sidebar-bar" style="background:{{ color }};opacity:0.3;width:100%;"></div>
+    </div>
+    {% endfor %}
+
+    <div class="mt-3">
+        {% if not current_user.is_authenticated %}
+        <div class="rf-card p-3 text-center" style="background:#f8f9fa;">
+            <div class="text-muted mb-2" style="font-size:0.8rem;">Save your scan history</div>
+            <a href="{{ url_for('register') }}" class="btn btn-sm btn-primary-semo w-100">Create Free Account</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── MAIN CONTENT ── -->
+<div class="main-content">
+
+<!-- ── SEARCHABILITY ── -->
+<div class="report-section" id="searchability">
+    <div class="section-header">
+        <span class="section-title">Searchability</span>
+        <span class="impact-badge impact-high">Important</span>
+    </div>
+    <p class="text-muted mb-2" style="font-size:0.85rem;">How well your resume can be parsed and found by ATS systems like iCIMS, Taleo, and Jobvite.</p>
+    <div class="section-tip">
+        <i class="bi bi-lightbulb-fill text-warning me-1"></i>
+        <strong>Tip:</strong> Fix the red items to ensure your resume is easily searchable and parsed correctly by ATS.
+    </div>
+    <div class="rf-card p-3">
+        {% for check in r.searchability_checks %}
+        <div class="check-row">
+            <div class="check-icon check-{{ check.status }}">
+                {% if check.status == 'pass' %}✓{% elif check.status == 'fail' %}✗{% else %}!{% endif %}
+            </div>
+            <div>
+                <div class="check-label">{{ check.label }}</div>
+                <div class="check-detail">{{ check.detail }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ── HARD SKILLS ── -->
+<div class="report-section" id="hard-skills">
+    <div class="section-header">
+        <span class="section-title">Hard Skills</span>
+        <span class="impact-badge impact-high">High Score Impact</span>
+    </div>
+    <p class="text-muted mb-2" style="font-size:0.85rem;">Job-specific technical skills identified in the job description. These have the highest impact on your match rate.</p>
+    <div class="section-tip">
+        <i class="bi bi-lightbulb-fill text-warning me-1"></i>
+        <strong>Tip:</strong> Match skills to the exact spelling in the job description. Prioritize skills that appear most frequently.
+    </div>
+    <div class="rf-card p-3">
+        {% set hard_missing = r.missing_by_cat.get('hard_skill', []) %}
+        {% set hard_matched = r.matched_by_cat.get('hard_skill', []) %}
+        {% if hard_missing %}
+            <div class="mb-3">
+                <div class="fw-semibold mb-2" style="font-size:0.85rem;color:#dc3545;">
+                    <i class="bi bi-x-circle me-1"></i>Missing ({{ hard_missing|length }})
+                </div>
+                <div>{% for kw in hard_missing %}<span style="display:inline-flex;align-items:center;gap:5px;background:#f8d7da;color:#721c24;padding:4px 10px;border-radius:16px;font-size:0.8rem;font-weight:600;margin:3px;">✗ {{ kw }}</span>{% endfor %}</div>
+            </div>
+        {% endif %}
+        {% if hard_matched %}
+            <div>
+                <div class="fw-semibold mb-2" style="font-size:0.85rem;color:#198754;">
+                    <i class="bi bi-check-circle me-1"></i>Found ({{ hard_matched|length }})
+                </div>
+                <div>{% for kw in hard_matched %}<span style="display:inline-flex;align-items:center;gap:5px;background:#d1e7dd;color:#0a5e0a;padding:4px 10px;border-radius:16px;font-size:0.8rem;font-weight:600;margin:3px;">✓ {{ kw }}</span>{% endfor %}</div>
+            </div>
+        {% endif %}
+        {% if not hard_missing and not hard_matched %}
+        <p class="text-muted mb-0">No hard skills detected in this job description.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── SOFT SKILLS ── -->
+<div class="report-section" id="soft-skills">
+    <div class="section-header">
+        <span class="section-title">Soft Skills</span>
+        <span class="impact-badge impact-medium">Medium Score Impact</span>
+    </div>
+    <p class="text-muted mb-2" style="font-size:0.85rem;">Traits and abilities not unique to any one job. Prioritize hard skills first, then showcase soft skills in interviews.</p>
+    <div class="section-tip">
+        <i class="bi bi-lightbulb-fill text-warning me-1"></i>
+        <strong>Tip:</strong> Prioritize adding hard skills to your resume. Soft skills are best demonstrated in interviews.
+    </div>
+    <div class="rf-card p-3">
+        {% set soft_missing = r.missing_by_cat.get('soft_skill', []) %}
+        {% set soft_matched = r.matched_by_cat.get('soft_skill', []) %}
+        {% if soft_missing %}
+        <div class="mb-3">
+            <div class="fw-semibold mb-2" style="font-size:0.85rem;color:#dc3545;"><i class="bi bi-x-circle me-1"></i>Missing ({{ soft_missing|length }})</div>
+            <div>{% for kw in soft_missing %}<span style="display:inline-flex;align-items:center;gap:5px;background:#f8d7da;color:#721c24;padding:4px 10px;border-radius:16px;font-size:0.8rem;font-weight:600;margin:3px;">✗ {{ kw }}</span>{% endfor %}</div>
+        </div>
+        {% endif %}
+        {% if soft_matched %}
+        <div>
+            <div class="fw-semibold mb-2" style="font-size:0.85rem;color:#198754;"><i class="bi bi-check-circle me-1"></i>Found ({{ soft_matched|length }})</div>
+            <div>{% for kw in soft_matched %}<span style="display:inline-flex;align-items:center;gap:5px;background:#d1e7dd;color:#0a5e0a;padding:4px 10px;border-radius:16px;font-size:0.8rem;font-weight:600;margin:3px;">✓ {{ kw }}</span>{% endfor %}</div>
+        </div>
+        {% endif %}
+        {% if not soft_missing and not soft_matched %}
+        <p class="text-muted mb-0">No soft skills detected in this job description.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── RECRUITER TIPS ── -->
+<div class="report-section" id="recruiter-tips">
+    <div class="section-header">
+        <span class="section-title">Recruiter Tips</span>
+        <span class="impact-badge impact-high">Important</span>
+    </div>
+    <p class="text-muted mb-2" style="font-size:0.85rem;">Best practices that recruiters expect to see in a strong resume.</p>
+    <div class="rf-card p-3">
+        {% for tip in r.recruiter_tips %}
+        <div class="check-row">
+            <div class="check-icon check-{{ tip.status }}">
+                {% if tip.status == 'pass' %}✓{% elif tip.status == 'fail' %}✗{% else %}!{% endif %}
+            </div>
+            <div>
+                <div class="check-label">{{ tip.label }}</div>
+                <div class="check-detail">{{ tip.detail }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ── SKILLS COMPARISON TABLE ── -->
+<div class="report-section" id="skills-comparison">
+    <div class="section-header">
+        <span class="section-title">Skills Comparison</span>
+    </div>
+    <p class="text-muted mb-3" style="font-size:0.85rem;">
+        All keywords found in the job description, ranked by TF-IDF importance. Shows how often each appears in your resume vs the job posting.
+    </p>
+    <div class="rf-card" style="overflow:hidden;">
+        <div style="overflow-x:auto;">
+        <table class="skills-table">
+            <thead>
+                <tr>
+                    <th>Skill / Keyword</th>
+                    <th>Category</th>
+                    <th>In Your Resume</th>
+                    <th>In Job Description</th>
+                    <th>Frequency</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in r.skills_table %}
+                <tr>
+                    <td>
+                        <span class="skill-name">{{ row.keyword }}</span>
+                    </td>
+                    <td>
+                        <span class="cat-dot cat-{{ 'hard' if row.category == 'hard_skill' else 'soft' if row.category == 'soft_skill' else 'tool' if row.category == 'tool' else 'cert' if row.category == 'certification' else 'other' }}"></span>
+                        <span style="font-size:0.78rem;color:#888;">{{ row.category.replace('_',' ').title() }}</span>
+                    </td>
+                    <td>
+                        {% if row.in_resume %}
+                        <span class="skill-present">✓ {{ row.resume_count if row.resume_count > 0 else '✓' }}</span>
+                        {% else %}
+                        <span class="skill-missing">✗</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-weight:600;">{{ row.job_count }}</span>
+                    </td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <div class="freq-bar" style="width:{{ [row.job_count * 14, 80]|min }}px;background:{{ '#dc3545' if not row.in_resume else '#198754' }};opacity:0.7;"></div>
+                            <span style="font-size:0.75rem;color:#aaa;">{{ row.tfidf }}</span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+</div><!-- end main-content -->
+</div><!-- end results-wrap -->
+
+{% if not current_user.is_authenticated %}
+<div class="mt-4 rf-card p-4 text-center" style="background:#f8f9fa;">
+    <h5 class="fw-bold mb-2">Save your scan history</h5>
+    <p class="text-muted mb-3" style="font-size:0.88rem;">Create a free account to save analyses, track your improvement over time, and compare multiple job descriptions.</p>
+    <a href="{{ url_for('register') }}" class="btn btn-primary-semo px-4">Create Free Account</a>
+    <a href="{{ url_for('login') }}" class="btn btn-outline-secondary px-4 ms-2">Log In</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Highlight active sidebar section on scroll
+const sections = ['searchability','hard-skills','soft-skills','recruiter-tips','skills-comparison'];
+const navItems = document.querySelectorAll('.sidebar-section');
+window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top < 120) current = id;
+    });
+    navItems.forEach((item, i) => {
+        item.classList.toggle('active', sections[i] === current);
+    });
+});
+</script>
+{% endblock %}

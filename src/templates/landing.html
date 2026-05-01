@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}ResumeForge — ATS Resume Optimizer · SEMO{% endblock %}
+{% block extra_head %}
+<style>
+.hero { padding: 5rem 0 4rem; }
+.hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(200,16,46,0.09); color: var(--semo-red); font-size: 0.8rem; font-weight: 600; padding: 5px 14px; border-radius: 20px; margin-bottom: 1.5rem; }
+.hero h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; line-height: 1.15; color: var(--semo-black); margin-bottom: 1.25rem; }
+.hero h1 span { color: var(--semo-red); }
+.hero-sub { font-size: 1.05rem; color: #555; line-height: 1.7; max-width: 500px; margin-bottom: 2rem; }
+.stat-num { font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--semo-black); }
+.stat-label { font-size: 0.82rem; color: #888; }
+.mock-card { background: #fff; border: 1px solid var(--border); border-radius: 18px; padding: 2rem; box-shadow: 0 8px 40px rgba(0,0,0,0.08); }
+.mock-score { font-family: 'Space Grotesk', sans-serif; font-size: 3rem; font-weight: 700; color: var(--semo-red); }
+.progress { height: 8px; border-radius: 8px; }
+.step-icon { width: 52px; height: 52px; border-radius: 14px; background: rgba(200,16,46,0.08); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; }
+.step-icon i { font-size: 1.4rem; color: var(--semo-red); }
+.feature-pill { background: #f1f3f5; border-radius: 8px; padding: 10px 16px; font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.feature-pill i { color: var(--semo-red); }
+</style>
+{% endblock %}
+{% block content %}
+<!-- Hero -->
+<div class="hero">
+    <div class="row align-items-center">
+        <div class="col-lg-6 mb-5 mb-lg-0">
+            <div class="hero-badge"><i class="bi bi-mortarboard-fill"></i>SEMO Computer Science Capstone</div>
+            <h1>
+                Get your resume past<br>
+                <span>ATS filters</span> and into<br>human hands
+            </h1>
+            <p class="hero-sub">
+                ResumeForge uses NLP and TF-IDF analysis to match your resume against job descriptions — identifying keyword gaps, scoring alignment, and giving actionable improvement suggestions.
+            </p>
+            <div class="d-flex flex-wrap gap-3 mb-4">
+                <a href="{{ url_for('analyze_page') }}" class="btn btn-primary-semo btn-lg px-4">
+                    <i class="bi bi-lightning-charge-fill me-2"></i>Analyze Free
+                </a>
+                {% if not current_user.is_authenticated %}
+                <a href="{{ url_for('register') }}" class="btn btn-outline-semo btn-lg px-4">
+                    <i class="bi bi-person-plus me-2"></i>Create Account
+                </a>
+                {% else %}
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-semo btn-lg px-4">
+                    <i class="bi bi-grid me-2"></i>Dashboard
+                </a>
+                {% endif %}
+            </div>
+            <div class="row g-4 pt-2">
+                <div class="col-4"><div class="stat-num">TF-IDF</div><div class="stat-label">Weighted scoring</div></div>
+                <div class="col-4"><div class="stat-num">6+</div><div class="stat-label">Gap categories</div></div>
+                <div class="col-4"><div class="stat-num">PDF</div><div class="stat-label">Export reports</div></div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="mock-card">
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <div style="width:42px;height:42px;border-radius:10px;background:rgba(200,16,46,0.1);display:flex;align-items:center;justify-content:center;">
+                        <i class="bi bi-file-earmark-person-fill text-danger"></i>
+                    </div>
+                    <div>
+                        <div class="fw-semibold" style="font-size:0.95rem;">Software Engineer · Google</div>
+                        <div class="text-muted" style="font-size:0.8rem;">Analyzed just now</div>
+                    </div>
+                    <span class="badge ms-auto" style="background:#d1e7dd;color:#0a5e0a;font-size:0.75rem;">Strong Match</span>
+                </div>
+                <div class="text-center mb-4">
+                    <div class="mock-score">78%</div>
+                    <div class="text-muted" style="font-size:0.82rem;">ATS Match Score (TF-IDF weighted)</div>
+                    <div class="progress mt-2"><div class="progress-bar bg-warning" style="width:78%"></div></div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <div style="background:#f8f9fa;border-radius:10px;padding:10px 14px;">
+                            <div class="text-muted" style="font-size:0.75rem;">Hard Skills</div>
+                            <div class="fw-bold">83% <span style="font-size:0.75rem;color:#888;">(10/12)</span></div>
+                            <div class="progress mt-1" style="height:4px;"><div class="progress-bar bg-success" style="width:83%"></div></div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div style="background:#f8f9fa;border-radius:10px;padding:10px 14px;">
+                            <div class="text-muted" style="font-size:0.75rem;">Soft Skills</div>
+                            <div class="fw-bold">60% <span style="font-size:0.75rem;color:#888;">(3/5)</span></div>
+                            <div class="progress mt-1" style="height:4px;"><div class="progress-bar bg-warning" style="width:60%"></div></div>
+                        </div>
+                    </div>
+                </div>
+                <div style="background:#fff3cd;border-radius:10px;padding:10px 14px;font-size:0.82rem;">
+                    <i class="bi bi-lightbulb-fill text-warning me-2"></i>
+                    <strong>Top gap:</strong> Add <code>kubernetes</code> to your Skills section if applicable.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- How it works -->
+<div class="py-5">
+    <div class="text-center mb-5">
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:700;">How it works</h2>
+        <p class="text-muted">Three steps to a stronger application</p>
+    </div>
+    <div class="row g-4">
+        {% for icon, title, desc in [
+            ('bi-upload', 'Upload', 'Upload your resume (PDF/DOCX/TXT) or paste the text directly.'),
+            ('bi-briefcase', 'Add job description', 'Paste the job posting you\'re targeting. Optionally add a job title to save to history.'),
+            ('bi-graph-up-arrow', 'Get your analysis', 'Receive a TF-IDF weighted match score, keyword gaps by category, and placement suggestions.')
+        ] %}
+        <div class="col-md-4">
+            <div class="rf-card p-4 text-center h-100">
+                <div class="step-icon"><i class="bi {{ icon }}"></i></div>
+                <h5 class="fw-bold mb-2">{{ title }}</h5>
+                <p class="text-muted mb-0" style="font-size:0.9rem;">{{ desc }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Features -->
+<div class="py-4 mb-3">
+    <div class="rf-card p-4">
+        <div class="row g-3">
+            {% for icon, text in [
+                ('bi-cpu', 'spaCy NLP — tokenization, lemmatization, NER'),
+                ('bi-bar-chart-line', 'TF-IDF weighted scoring algorithm'),
+                ('bi-diagram-3', 'Gap categorization: skills, tools, certs, soft skills'),
+                ('bi-file-earmark-pdf', 'Professional PDF report export'),
+                ('bi-shield-lock', 'No persistent file storage — session only'),
+                ('bi-clock-history', 'Login to save & compare analyses over time'),
+            ] %}
+            <div class="col-md-4 col-6"><div class="feature-pill"><i class="bi {{ icon }}"></i>{{ text }}</div></div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- CTA -->
+<div style="background:var(--semo-black);border-radius:16px;padding:3rem 2.5rem;" class="mb-4">
+    <div class="row align-items-center">
+        <div class="col-lg-8 mb-3 mb-lg-0">
+            <h3 class="text-white fw-bold mb-2" style="font-family:'Space Grotesk',sans-serif;">Ready to optimize your resume?</h3>
+            <p class="mb-0" style="color:rgba(255,255,255,0.6);">Free to use. No data stored. Built for SEMO students.</p>
+        </div>
+        <div class="col-lg-4 text-lg-end">
+            <a href="{{ url_for('analyze_page') }}" class="btn btn-primary-semo btn-lg px-4">
+                Start Analysis <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — ResumeForge{% endblock %}
+{% block extra_head %}
+<style>
+.welcome-card { background: linear-gradient(135deg, var(--semo-black) 0%, #2d1f2f 100%); color: white; border-radius: 16px; padding: 2rem 2.5rem; margin-bottom: 1.5rem; }
+.metric-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem 1.5rem; }
+.metric-num { font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; }
+.history-row { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f2f5; gap: 12px; }
+.history-row:last-child { border-bottom: none; }
+.score-pill { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.9rem; padding: 4px 12px; border-radius: 20px; min-width: 54px; text-align: center; }
+.score-high { background: #d1e7dd; color: #0a5e0a; }
+.score-mid  { background: #fff3cd; color: #6c4f00; }
+.score-low  { background: #f8d7da; color: #721c24; }
+</style>
+{% endblock %}
+{% block content %}
+<!-- Welcome -->
+<div class="welcome-card">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:700;" class="mb-1">Welcome back, {{ current_user.name.split()[0] }} 👋</h2>
+            <p class="mb-0" style="color:rgba(255,255,255,0.65);font-size:0.9rem;">
+                Member since {{ current_user.created_at.strftime('%B %Y') }}
+                {% if current_user.last_login %} · Last login {{ current_user.last_login.strftime('%b %d') }}{% endif %}
+            </p>
+        </div>
+        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+            <a href="{{ url_for('analyze_page') }}" class="btn btn-primary-semo">
+                <i class="bi bi-lightning-charge-fill me-2"></i>New Analysis
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Metrics -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="metric-card">
+            <div class="text-muted mb-1" style="font-size:0.8rem;">Total Analyses</div>
+            <div class="metric-num" style="color:var(--semo-red);">{{ analyses|length }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="metric-card">
+            <div class="text-muted mb-1" style="font-size:0.8rem;">Average Score</div>
+            <div class="metric-num" style="color:{% if avg_score and avg_score >= 70 %}#198754{% elif avg_score and avg_score >= 40 %}#fd7e14{% else %}#dc3545{% endif %};">
+                {% if avg_score %}{{ avg_score }}%{% else %}—{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="metric-card">
+            <div class="text-muted mb-1" style="font-size:0.8rem;">Best Score</div>
+            <div class="metric-num" style="color:#198754;">
+                {% if analyses %}{{ analyses|map(attribute='score')|max }}%{% else %}—{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="metric-card">
+            <div class="text-muted mb-1" style="font-size:0.8rem;">Strong Matches</div>
+            <div class="metric-num">{{ analyses|selectattr('score','ge',70)|list|length }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent analyses -->
+<div class="rf-card p-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h5 style="font-family:'Space Grotesk',sans-serif;font-weight:700;" class="mb-0">Recent Analyses</h5>
+        {% if analyses|length > 5 %}
+        <a href="{{ url_for('history') }}" class="text-danger" style="font-size:0.85rem;">View all →</a>
+        {% endif %}
+    </div>
+    {% if analyses %}
+        {% for a in analyses[:5] %}
+        <div class="history-row">
+            <span class="score-pill {% if a.score >= 70 %}score-high{% elif a.score >= 40 %}score-mid{% else %}score-low{% endif %}">
+                {{ a.score }}%
+            </span>
+            <div class="flex-grow-1">
+                <div class="fw-medium" style="font-size:0.9rem;">{{ a.job_title or 'Untitled' }}</div>
+                <div class="text-muted" style="font-size:0.77rem;">
+                    {{ a.matched_count }} matched · {{ a.missing_count }} missing · {{ a.created_at.strftime('%b %d, %Y') }}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-file-earmark-text text-muted fs-1 mb-3 d-block"></i>
+            <p class="text-muted mb-3">No analyses yet. Run your first one!</p>
+            <a href="{{ url_for('analyze_page') }}" class="btn btn-primary-semo">
+                <i class="bi bi-lightning-charge-fill me-2"></i>Analyze Resume
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Create Account — ResumeForge{% endblock %}
+{% block extra_head %}
+<style>
+.auth-card { max-width: 480px; margin: 2.5rem auto; }
+.auth-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.8rem; }
+.form-control { border-radius: 8px; border: 1px solid #dde2e8; padding: 0.65rem 1rem; font-size: 0.95rem; }
+.form-control:focus { border-color: var(--semo-red); box-shadow: 0 0 0 3px rgba(200,16,46,0.12); }
+.input-group-text { background: #f8f9fa; border-color: #dde2e8; color: #888; }
+.strength-bar { height: 4px; border-radius: 4px; transition: all 0.3s; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="auth-card">
+    <div class="text-center mb-4">
+        <i class="bi bi-person-plus-fill fs-1" style="color:var(--semo-red);"></i>
+        <div class="auth-title mt-2">Create your account</div>
+        <p class="text-muted" style="font-size:0.9rem;">Save analyses and track your improvement over time</p>
+    </div>
+    <div class="rf-card p-4">
+        <form method="POST" id="reg-form">
+            <div class="mb-3">
+                <label class="form-label fw-medium" style="font-size:0.9rem;">Full name</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" name="name" class="form-control" placeholder="Jane Smith" required autofocus>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-medium" style="font-size:0.9rem;">Email address <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                    <input type="email" name="email" class="form-control" placeholder="you@semo.edu" required>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-medium" style="font-size:0.9rem;">Phone number <span class="text-muted">(optional — can use to log in)</span></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-phone"></i></span>
+                    <input type="tel" name="phone" class="form-control" placeholder="573-555-0100">
+                </div>
+                <div class="form-text">You can log in with either your email or phone number.</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-medium" style="font-size:0.9rem;">Password <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    <input type="password" name="password" id="pw" class="form-control" placeholder="Min 8 characters" required oninput="checkStrength(this.value)">
+                    <button class="btn btn-outline-secondary border-start-0" type="button" onclick="togglePw()">
+                        <i class="bi bi-eye" id="eye-icon"></i>
+                    </button>
+                </div>
+                <div class="mt-1">
+                    <div class="strength-bar" id="strength-bar" style="background:#eee;width:100%;"></div>
+                    <small id="strength-label" class="text-muted"></small>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-medium" style="font-size:0.9rem;">Confirm password <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                    <input type="password" name="confirm_password" class="form-control" placeholder="Repeat password" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary-semo w-100 py-2">
+                <i class="bi bi-person-check me-2"></i>Create Account
+            </button>
+        </form>
+        <hr class="my-4">
+        <p class="text-center text-muted mb-0" style="font-size:0.9rem;">
+            Already have an account? <a href="{{ url_for('login') }}" class="text-danger fw-medium">Log in</a>
+        </p>
+        <p class="text-center mt-2 mb-0" style="font-size:0.85rem;">
+            <a href="{{ url_for('analyze_page') }}" class="text-muted">Continue without account</a>
+        </p>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function togglePw() {
+    const pw = document.getElementById('pw');
+    const icon = document.getElementById('eye-icon');
+    if (pw.type === 'password') { pw.type = 'text'; icon.className = 'bi bi-eye-slash'; }
+    else { pw.type = 'password'; icon.className = 'bi bi-eye'; }
+}
+function checkStrength(val) {
+    const bar = document.getElementById('strength-bar');
+    const label = document.getElementById('strength-label');
+    let score = 0;
+    if (val.length >= 8) score++;
+    if (/[A-Z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+    const colors = ['#dc3545','#fd7e14','#ffc107','#198754'];
+    const labels = ['Weak','Fair','Good','Strong'];
+    bar.style.background = colors[score-1] || '#eee';
+    bar.style.width = (score * 25) + '%';
+    label.textContent = score > 0 ? labels[score-1] : '';
+    label.style.color = colors[score-1] || '#888';
+}
+</script>
+{% endblock %}

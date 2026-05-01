@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+{% block title %}Resume Score — ResumeForge{% endblock %}
+{% block extra_head %}
+<style>
+.page-layout { display:flex; gap:24px; align-items:flex-start; }
+.sidebar { width:280px; flex-shrink:0; position:sticky; top:76px; }
+.main-area { flex:1; min-width:0; }
+@media(max-width:860px){ .page-layout{flex-direction:column;} .sidebar{width:100%;position:static;} }
+
+/* Score card */
+.score-card { background:#fff; border:1px solid var(--border); border-radius:16px; padding:1.5rem; text-align:center; margin-bottom:12px; }
+.score-ring { position:relative; width:130px; height:130px; margin:0 auto 10px; }
+.score-ring svg { transform:rotate(-90deg); }
+.score-inner { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.score-num { font-family:'Space Grotesk',sans-serif; font-size:2rem; font-weight:700; line-height:1; }
+.score-denom { font-size:0.7rem; color:#aaa; font-weight:500; }
+.score-label { font-size:0.88rem; font-weight:700; margin-top:4px; }
+.issues-pill { display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:600; padding:3px 10px; border-radius:20px; margin-top:6px; }
+
+/* Category accordion */
+.cat-accordion { background:#fff; border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:10px; }
+.cat-header { display:flex; align-items:center; gap:10px; padding:11px 14px; cursor:pointer; user-select:none; transition:background 0.12s; }
+.cat-header:hover { background:#f8f9fa; }
+.cat-name { font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:#888; flex:1; }
+.cat-pct { font-size:0.75rem; font-weight:700; padding:2px 9px; border-radius:10px; }
+.pct-good { background:#d1fae5; color:#065f46; }
+.pct-mid  { background:#fef3c7; color:#92400e; }
+.pct-bad  { background:#fee2e2; color:#991b1b; }
+.pct-na   { background:#fef3c7; color:#92400e; }
+.cat-chevron { font-size:0.75rem; color:#aaa; transition:transform 0.2s; }
+.cat-chevron.open { transform:rotate(180deg); }
+
+/* Sub-items */
+.cat-body { display:none; border-top:1px solid #f5f6f7; }
+.cat-body.open { display:block; }
+.sub-item { display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid #f8f9fa; }
+.sub-item:last-child { border-bottom:none; }
+.sub-icon { font-size:0.95rem; flex-shrink:0; width:18px; text-align:center; }
+.icon-pass { color:#10b981; }
+.icon-fail { color:#ef4444; }
+.icon-warn { color:#f59e0b; }
+.icon-unknown { color:#f59e0b; }
+.sub-name { font-size:0.85rem; font-weight:500; flex:1; color:var(--semo-black); }
+.sub-badge { font-size:0.72rem; font-weight:600; padding:2px 9px; border-radius:10px; white-space:nowrap; }
+.badge-ok    { background:#d1fae5; color:#065f46; }
+.badge-issue { background:#fee2e2; color:#991b1b; }
+.badge-warn  { background:#fef3c7; color:#92400e; }
+.badge-na    { background:#fef3c7; color:#92400e; }
+
+/* Main detail cards */
+.detail-card { background:#fff; border:1px solid var(--border); border-radius:16px; margin-bottom:20px; overflow:hidden; scroll-margin-top:80px; }
+.detail-header { padding:16px 20px 12px; }
+.detail-header h3 { font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1rem; margin:0; display:flex; align-items:center; gap:8px; }
+.detail-body { padding:0 20px 16px; }
+.detail-tip { background:#fffbeb; border-left:3px solid #f59e0b; border-radius:0 8px 8px 0; padding:9px 13px; font-size:0.8rem; color:#78350f; margin-bottom:14px; }
+
+/* Check rows in detail */
+.check-row { display:flex; gap:12px; align-items:flex-start; padding:13px 0; border-bottom:1px solid #f5f7f9; }
+.check-row:last-child { border-bottom:none; }
+.check-dot { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.8rem; font-weight:700; margin-top:1px; }
+.dot-pass { background:#d1fae5; color:#065f46; }
+.dot-fail { background:#fee2e2; color:#991b1b; }
+.dot-warn { background:#fef3c7; color:#92400e; }
+.check-text { flex:1; }
+.check-title { font-weight:600; font-size:0.88rem; color:var(--semo-black); margin-bottom:2px; }
+.check-desc { font-size:0.8rem; color:#666; line-height:1.5; }
+.flagged-bullet { background:#fef3c7; border-radius:6px; padding:6px 10px; font-size:0.78rem; margin-top:6px; border-left:2px solid #f59e0b; font-style:italic; }
+.example-good { background:#d1fae5; border-radius:6px; padding:7px 11px; font-size:0.78rem; margin-top:6px; border-left:2px solid #10b981; }
+.example-bad  { background:#fee2e2; border-radius:6px; padding:7px 11px; font-size:0.78rem; margin-top:6px; border-left:2px solid #ef4444; }
+
+/* Tailoring dark card */
+.tailor-card { background:linear-gradient(135deg,#111827,#1f2937); border-radius:16px; padding:1.75rem; color:#fff; margin-bottom:20px; }
+.tailor-card h3 { font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1rem; margin-bottom:4px; }
+.tailor-card p { color:rgba(255,255,255,0.6); font-size:0.82rem; margin-bottom:1.25rem; }
+.tailor-textarea { width:100%; min-height:100px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15); border-radius:10px; padding:11px; color:#fff; font-size:0.85rem; resize:vertical; font-family:'Inter',sans-serif; }
+.tailor-textarea:focus { outline:none; border-color:rgba(255,255,255,0.4); }
+.tailor-textarea::placeholder { color:rgba(255,255,255,0.3); }
+.tailor-btn { background:var(--semo-red); color:#fff; border:none; font-weight:700; padding:9px 20px; border-radius:8px; cursor:pointer; font-size:0.88rem; transition:all 0.2s; display:inline-flex; align-items:center; gap:6px; margin-top:10px; }
+.tailor-btn:hover { background:var(--semo-red-dark); }
+.tailor-sub-item { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.07); font-size:0.83rem; color:rgba(255,255,255,0.8); }
+.tailor-sub-item:last-child { border-bottom:none; }
+.tailor-icon { font-size:0.9rem; }
+
+/* AI CTA */
+.ai-cta { background:linear-gradient(135deg,#c8102e,#7f0a1e); border-radius:16px; padding:1.5rem 1.75rem; color:#fff; margin-bottom:20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.ai-cta-text h4 { font-family:'Space Grotesk',sans-serif; font-weight:700; margin:0 0 4px; font-size:0.95rem; }
+.ai-cta-text p { margin:0; font-size:0.8rem; color:rgba(255,255,255,0.75); }
+.ai-cta-btn { background:#fff; color:var(--semo-red); border:none; font-weight:700; padding:10px 20px; border-radius:10px; cursor:pointer; white-space:nowrap; font-size:0.88rem; transition:all 0.2s; display:inline-flex; align-items:center; gap:6px; }
+.ai-cta-btn:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(0,0,0,0.2); }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set c = report %}
+{% set ov = c.overall %}
+{% set ov_color = '#10b981' if ov >= 75 else '#f59e0b' if ov >= 50 else '#ef4444' %}
+{% set ov_label = 'Excellent' if ov >= 85 else 'Good' if ov >= 70 else 'Average' if ov >= 50 else 'Needs Work' %}
+
+<div class="page-layout">
+<!-- ══ SIDEBAR ══════════════════════════════════════════════════════════ -->
+<div class="sidebar">
+
+  <!-- Score ring -->
+  <div class="score-card">
+    {% set circ = 326.725 %}
+    {% set offset = circ * (1 - ov/100) %}
+    <div class="score-ring">
+      <svg width="130" height="130" viewBox="0 0 130 130">
+        <circle cx="65" cy="65" r="52" fill="none" stroke="#f3f4f6" stroke-width="11"/>
+        <circle cx="65" cy="65" r="52" fill="none" stroke="{{ ov_color }}" stroke-width="11"
+                stroke-dasharray="{{ circ }}" stroke-dashoffset="{{ offset }}" stroke-linecap="round"/>
+      </svg>
+      <div class="score-inner">
+        <div class="score-num" style="color:{{ ov_color }}">{{ ov }}</div>
+        <div class="score-denom">/100</div>
+      </div>
+    </div>
+    <div class="score-label" style="color:{{ ov_color }}">{{ ov_label }}</div>
+    {% if c.total_issues > 0 %}
+    <div class="issues-pill" style="background:#fee2e2;color:#991b1b;">
+      <i class="bi bi-exclamation-circle"></i>{{ c.total_issues }} issue{{ 's' if c.total_issues != 1 else '' }} found
+    </div>
+    {% else %}
+    <div class="issues-pill" style="background:#d1fae5;color:#065f46;">
+      <i class="bi bi-check-circle"></i>No issues found
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── CONTENT accordion ── -->
+  {% set cs = c.content_score %}
+  <div class="cat-accordion">
+    <div class="cat-header" onclick="toggleCat('cat-content',this)">
+      <span class="cat-name">Content</span>
+      <span class="cat-pct {{ 'pct-good' if cs>=75 else 'pct-mid' if cs>=50 else 'pct-bad' }}">{{ cs }}%</span>
+      <i class="bi bi-chevron-up cat-chevron open" id="chev-cat-content"></i>
+    </div>
+    <div class="cat-body open" id="cat-content">
+      {% set content_items = [
+        ('ATS Parse Rate',     c.ats_parse.status,    c.ats_parse.count|default(0) if c.ats_parse.status!='pass' else 0),
+        ('Quantifying Impact', c.quantify.status,     c.quantify.count if c.quantify.status!='pass' else 0),
+        ('Repetition',         c.repetition.status,   c.repetition.count if c.repetition.status!='pass' else 0),
+        ('Spelling & Grammar', c.spelling.status,     c.spelling.count if c.spelling.status!='pass' else 0),
+      ] %}
+      {% for name, status, issues in content_items %}
+      <div class="sub-item" onclick="scrollTo('{{ name|lower|replace(' ','_') }}')">
+        {% if status == 'pass' %}
+          <span class="sub-icon icon-pass">✓</span>
+          <span class="sub-name">{{ name }}</span>
+          <span class="sub-badge badge-ok">No issues</span>
+        {% elif status == 'fail' %}
+          <span class="sub-icon icon-fail">✗</span>
+          <span class="sub-name">{{ name }}</span>
+          <span class="sub-badge badge-issue">{{ issues }} issue{{ 's' if issues!=1 else '' }}</span>
+        {% else %}
+          <span class="sub-icon icon-warn">!</span>
+          <span class="sub-name">{{ name }}</span>
+          <span class="sub-badge badge-warn">{{ issues }} issue{{ 's' if issues!=1 else '' }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── SECTIONS accordion ── -->
+  {% set ss = c.sections_score %}
+  <div class="cat-accordion">
+    <div class="cat-header" onclick="toggleCat('cat-sections',this)">
+      <span class="cat-name">Sections</span>
+      <span class="cat-pct {{ 'pct-good' if ss>=75 else 'pct-mid' if ss>=50 else 'pct-bad' }}">{{ ss }}%</span>
+      <i class="bi bi-chevron-down cat-chevron" id="chev-cat-sections"></i>
+    </div>
+    <div class="cat-body" id="cat-sections">
+      {% set ess_issues = c.essential.missing|length %}
+      {% set contact_issues = (0 if c.contact.has_email else 1) + (0 if c.contact.has_phone else 1) + (0 if c.contact.has_linkedin else 1) %}
+      {% for name, status, issues in [
+        ('Essential Sections',  c.essential.status,  ess_issues),
+        ('Contact Information', c.contact.status,    contact_issues),
+        ('Summary / Objective', c.summary.status,    0 if c.summary.has_summary else 1),
+      ] %}
+      <div class="sub-item">
+        {% if status == 'pass' %}
+          <span class="sub-icon icon-pass">✓</span>
+          <span class="sub-name">{{ name }}</span>
+          <span class="sub-badge badge-ok">No issues</span>
+        {% elif status == 'fail' %}
+          <span class="sub-icon icon-fail">✗</span>
+          <span class="sub-name">{{ name }}</span>
+          <span class="sub-badge badge-issue">{{ issues }} issue{{ 's' if issues!=1 else '' }}</span>
+        {% else %}
+          <span class="sub-icon icon-warn">!</span>
+          <span class="sub-name">{{ name }}</span>
+          <span class="sub-badge badge-warn">{{ issues }} issue{{ 's' if issues!=1 else '' }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── ATS ESSENTIALS accordion ── -->
+  {% set as = c.ats_score %}
+  <div class="cat-accordion">
+    <div class="cat-header" onclick="toggleCat('cat-ats',this)">
+      <span class="cat-name">ATS Essentials</span>
+      <span class="cat-pct {{ 'pct-good' if as>=75 else 'pct-mid' if as>=50 else 'pct-bad' }}">{{ as }}%</span>
+      <i class="bi bi-chevron-down cat-chevron" id="chev-cat-ats"></i>
+    </div>
+    <div class="cat-body" id="cat-ats">
+      {% for name, status in [
+        ('File Format & Size', c.file_type.status),
+        ('Resume Length',      c.length.status),
+        ('Date Formatting',    c.dates.status),
+        ('Active Voice',       c.active_voice.status),
+      ] %}
+      <div class="sub-item">
+        {% if status == 'pass' %}
+          <span class="sub-icon icon-pass">✓</span>
+          <span class="sub-name">{{ name }}</span>
+          <span class="sub-badge badge-ok">No issues</span>
+        {% else %}
+          <span class="sub-icon icon-warn">!</span>
+          <span class="sub-name">{{ name }}</span>
+          <span class="sub-badge badge-warn">1 issue</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── TAILORING accordion (??% until job desc pasted) ── -->
+  <div class="cat-accordion">
+    <div class="cat-header" onclick="document.getElementById('tailoring-section').scrollIntoView({behavior:'smooth'})">
+      <span class="cat-name">Tailoring</span>
+      <span class="cat-pct pct-na">??%</span>
+      <i class="bi bi-chevron-right cat-chevron"></i>
+    </div>
+    <div style="padding:8px 14px 10px;">
+      {% for name in ['Hard Skills','Soft Skills','Action Verbs','Tailored Title'] %}
+      <div class="sub-item" style="padding:6px 0;">
+        <span class="sub-icon icon-unknown" style="color:#f59e0b;">?</span>
+        <span class="sub-name" style="color:#aaa;">{{ name }}</span>
+        <span class="sub-badge badge-na">??</span>
+      </div>
+      {% endfor %}
+      <div class="mt-2" style="font-size:0.75rem;color:#aaa;">Paste a job description below to unlock</div>
+    </div>
+  </div>
+
+</div><!-- end sidebar -->
+
+<!-- ══ MAIN AREA ════════════════════════════════════════════════════════ -->
+<div class="main-area">
+
+  <!-- Top bar -->
+  <div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.3rem;margin:0 0 3px;">Your Resume Score</h2>
+      <div class="text-muted" style="font-size:0.82rem;">{{ c.total_issues }} issue{{ 's' if c.total_issues!=1 else '' }} found across 16 checks</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('upgrade') }}" class="btn btn-sm btn-primary-semo">
+        <i class="bi bi-magic me-1"></i>Fix with AI
+      </a>
+      <a href="{{ url_for('analyze_page') }}" class="btn btn-sm btn-outline-semo">
+        <i class="bi bi-arrow-repeat me-1"></i>New Check
+      </a>
+    </div>
+  </div>
+
+  <!-- ── CONTENT section ── -->
+  <div class="detail-card" id="content-detail">
+    <div class="detail-header">
+      <h3>
+        <span style="background:#f3f4f6;border-radius:6px;padding:2px 8px;font-size:0.7rem;letter-spacing:0.5px;font-weight:700;color:#666;text-transform:uppercase;">Content</span>
+        <span class="cat-pct {{ 'pct-good' if c.content_score>=75 else 'pct-mid' if c.content_score>=50 else 'pct-bad' }}" style="font-size:0.78rem;padding:2px 9px;border-radius:10px;">{{ c.content_score }}%</span>
+        {% if c.content_issues > 0 %}<span class="sub-badge badge-issue">{{ c.content_issues }} issue{{ 's' if c.content_issues!=1 else '' }}</span>{% endif %}
+      </h3>
+    </div>
+    <div class="detail-body">
+
+      <!-- ATS Parse Rate -->
+      <div class="check-row" id="ats_parse_rate">
+        <div class="check-dot {{ 'dot-pass' if c.ats_parse.status=='pass' else 'dot-fail' }}">
+          {{ '✓' if c.ats_parse.status=='pass' else '✗' }}
+        </div>
+        <div class="check-text">
+          <div class="check-title">ATS Parse Rate</div>
+          <div class="check-desc">{{ c.ats_parse.detail }}</div>
+        </div>
+      </div>
+
+      <!-- Quantifying Impact -->
+      <div class="check-row" id="quantifying_impact">
+        <div class="check-dot {{ 'dot-pass' if c.quantify.status=='pass' else 'dot-fail' }}">
+          {{ '✓' if c.quantify.status=='pass' else '✗' }}
+        </div>
+        <div class="check-text">
+          <div class="check-title">Quantifying Impact
+            {% if c.quantify.count > 0 %}<span class="sub-badge badge-issue ms-1">{{ c.quantify.count }} issue{{ 's' if c.quantify.count!=1 else '' }}</span>{% endif %}
+          </div>
+          <div class="check-desc">{{ c.quantify.detail }}</div>
+          {% if c.quantify.flagged %}
+            {% for b in c.quantify.flagged[:8] %}
+            <div class="flagged-bullet"><i class="bi bi-exclamation-triangle-fill me-1" style="color:#f59e0b;"></i>{{ b }}</div>
+            {% endfor %}
+            <div class="example-good mt-2">
+              <strong>How to fix:</strong> Add a number or metric to each bullet above — e.g. "reduced processing time by <strong>40%</strong>", "handled <strong>50+ requests</strong> daily", "improved accuracy by <strong>25%</strong>"
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Repetition -->
+      <div class="check-row" id="repetition">
+        <div class="check-dot {{ 'dot-pass' if c.repetition.status=='pass' else 'dot-warn' }}">
+          {{ '✓' if c.repetition.status=='pass' else '!' }}
+        </div>
+        <div class="check-text">
+          <div class="check-title">Repetition</div>
+          <div class="check-desc">{{ c.repetition.detail }}</div>
+          {% if c.repetition.repeated %}
+            {% for word, count in c.repetition.repeated[:4] %}
+            <div class="flagged-bullet">Word <strong>"{{ word }}"</strong> used {{ count }} times — use synonyms or active alternatives</div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Spelling & Grammar -->
+      <div class="check-row" id="spelling__grammar">
+        <div class="check-dot {{ 'dot-pass' if c.spelling.status=='pass' else 'dot-fail' }}">
+          {{ '✓' if c.spelling.status=='pass' else '✗' }}
+        </div>
+        <div class="check-text">
+          <div class="check-title">Spelling & Grammar
+            {% if c.spelling.count > 0 %}<span class="sub-badge badge-issue ms-1">{{ c.spelling.count }} issue{{ 's' if c.spelling.count!=1 else '' }}</span>{% endif %}
+          </div>
+          <div class="check-desc">{{ c.spelling.detail }}</div>
+          {% if c.spelling.issues %}
+            {% for issue in c.spelling.issues[:4] %}
+            <div class="flagged-bullet"><i class="bi bi-x-circle-fill me-1" style="color:#ef4444;"></i>{{ issue }}</div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── SECTIONS section ── -->
+  <div class="detail-card" id="sections-detail">
+    <div class="detail-header">
+      <h3>
+        <span style="background:#f3f4f6;border-radius:6px;padding:2px 8px;font-size:0.7rem;letter-spacing:0.5px;font-weight:700;color:#666;text-transform:uppercase;">Sections</span>
+        <span class="cat-pct {{ 'pct-good' if c.sections_score>=75 else 'pct-mid' if c.sections_score>=50 else 'pct-bad' }}" style="font-size:0.78rem;padding:2px 9px;border-radius:10px;">{{ c.sections_score }}%</span>
+        {% if c.sections_issues > 0 %}<span class="sub-badge badge-issue">{{ c.sections_issues }} issue{{ 's' if c.sections_issues!=1 else '' }}</span>{% endif %}
+      </h3>
+    </div>
+    <div class="detail-body">
+
+      <div class="check-row">
+        <div class="check-dot {{ 'dot-pass' if c.essential.status=='pass' else 'dot-fail' }}">
+          {{ '✓' if c.essential.status=='pass' else '✗' }}
+        </div>
+        <div class="check-text">
+          <div class="check-title">Essential Sections</div>
+          <div class="check-desc">{{ c.essential.detail }}</div>
+          <div class="mt-2 d-flex flex-wrap gap-1">
+            {% for s in c.essential.found %}
+            <span style="background:#d1fae5;color:#065f46;font-size:0.75rem;font-weight:600;padding:2px 9px;border-radius:10px;">✓ {{ s.title() }}</span>
+            {% endfor %}
+            {% for s in c.essential.missing %}
+            <span style="background:#fee2e2;color:#991b1b;font-size:0.75rem;font-weight:600;padding:2px 9px;border-radius:10px;">✗ {{ s.title() }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="check-row">
+        <div class="check-dot {{ 'dot-pass' if c.contact.status=='pass' else 'dot-warn' }}">
+          {{ '✓' if c.contact.status=='pass' else '!' }}
+        </div>
+        <div class="check-text">
+          <div class="check-title">Contact Information</div>
+          <div class="check-desc">
+            {% for d in c.contact.details %}<div>{{ d }}</div>{% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="check-row">
+        <div class="check-dot {{ 'dot-pass' if c.summary.status=='pass' else 'dot-warn' }}">
+          {{ '✓' if c.summary.status=='pass' else '!' }}
+        </div>
+        <div class="check-text">
+          <div class="check-title">Summary / Objective</div>
+          <div class="check-desc">{{ c.summary.detail }}</div>
+          {% if not c.summary.has_summary %}
+          <div class="example-good mt-2"><strong>Example:</strong> "Software engineer with 2+ years building React/Node.js apps. Skilled in AWS, Docker, and CI/CD. Seeking a full-stack role to deliver scalable web products."</div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── ATS ESSENTIALS section ── -->
+  <div class="detail-card" id="ats-detail">
+    <div class="detail-header">
+      <h3>
+        <span style="background:#f3f4f6;border-radius:6px;padding:2px 8px;font-size:0.7rem;letter-spacing:0.5px;font-weight:700;color:#666;text-transform:uppercase;">ATS Essentials</span>
+        <span class="cat-pct {{ 'pct-good' if c.ats_score>=75 else 'pct-mid' if c.ats_score>=50 else 'pct-bad' }}" style="font-size:0.78rem;padding:2px 9px;border-radius:10px;">{{ c.ats_score }}%</span>
+      </h3>
+    </div>
+    <div class="detail-body">
+      {% for title, status, detail in [
+        ('File Format & Size', c.file_type.status, c.file_type.detail),
+        ('Resume Length',      c.length.status,    c.length.detail),
+        ('Date Formatting',    c.dates.status,      c.dates.detail),
+        ('Active Voice',       c.active_voice.status, c.active_voice.detail),
+      ] %}
+      <div class="check-row">
+        <div class="check-dot {{ 'dot-pass' if status=='pass' else 'dot-warn' }}">{{ '✓' if status=='pass' else '!' }}</div>
+        <div class="check-text">
+          <div class="check-title">{{ title }}</div>
+          <div class="check-desc">{{ detail }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── AI FIX CTA ── -->
+  <div class="ai-cta">
+    <div class="ai-cta-text flex-grow-1">
+      <h4><i class="bi bi-stars me-1"></i>Fix all {{ c.total_issues }} issue{{ 's' if c.total_issues!=1 else '' }} with AI</h4>
+      <p>AI rewrites your bullets, adds a summary, strengthens action verbs, and optimizes for ATS.</p>
+    </div>
+    <a href="{{ url_for('upgrade') }}" class="ai-cta-btn">
+      <i class="bi bi-magic"></i>AI Rewrite & Download
+    </a>
+  </div>
+
+  <!-- ── TAILORING section ── -->
+  <div class="tailor-card" id="tailoring-section">
+    <h3><i class="bi bi-crosshair2 me-2"></i>Resume Tailoring</h3>
+    <p>Paste the job description you're applying for. We'll check Hard Skills, Soft Skills, Action Verbs, and Job Title match — and unlock your Tailoring score.</p>
+
+    <!-- Tailoring sub-items (locked) -->
+    <div class="mb-4" style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px 14px;">
+      {% for name in ['Hard Skills','Soft Skills','Action Verbs','Tailored Title'] %}
+      <div class="tailor-sub-item">
+        <span class="tailor-icon" style="color:#f59e0b;">?</span>
+        <span style="flex:1;">{{ name }}</span>
+        <span style="font-size:0.72rem;background:rgba(245,158,11,0.2);color:#fbbf24;padding:2px 8px;border-radius:8px;font-weight:600;">Paste JD to unlock</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <form action="{{ url_for('tailor_resume') }}" method="POST" id="tailor-form">
+      <input type="hidden" name="job_title" id="tailor-job-title" value="">
+      <input type="text" placeholder="Job title (optional — e.g. Software Engineer at Google)"
+             style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:9px 12px;color:#fff;font-size:0.85rem;margin-bottom:8px;"
+             oninput="document.getElementById('tailor-job-title').value=this.value">
+      <textarea name="job_text" class="tailor-textarea" required
+                placeholder="Paste job description here...&#10;&#10;Requirements, responsibilities, qualifications..."></textarea>
+      <button type="submit" class="tailor-btn">
+        <i class="bi bi-lightning-charge-fill"></i>Get Tailored Insights
+      </button>
+    </form>
+  </div>
+
+  <p class="text-center text-muted" style="font-size:0.75rem;">
+    <i class="bi bi-shield-lock me-1"></i>Resume data is session-only and not permanently stored.
+    <a href="{{ url_for('clear_session') }}" class="text-muted ms-1">Delete my data</a>
+  </p>
+
+</div><!-- end main-area -->
+</div><!-- end page-layout -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleCat(id, header) {
+    const body = document.getElementById(id);
+    const chev = header.querySelector('.cat-chevron');
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    chev.classList.toggle('open', !isOpen);
+}
+// Smooth scroll to detail section on sub-item click
+function scrollToDetail(id) {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({behavior:'smooth'});
+}
+</script>
+{% endblock %}

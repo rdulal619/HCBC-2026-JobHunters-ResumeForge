@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+{% block title %}AI Resume Rewriter — ResumeForge{% endblock %}
+{% block extra_head %}
+<style>
+.rewrite-wrap { display:flex; gap:24px; align-items:flex-start; }
+.left-panel { width:300px; flex-shrink:0; }
+.right-panel { flex:1; min-width:0; }
+@media(max-width:900px) { .rewrite-wrap { flex-direction:column; } .left-panel { width:100%; } }
+
+.score-compare { display:flex; align-items:center; justify-content:center; gap:20px; padding:20px; background:#fff; border:1px solid var(--border); border-radius:14px; margin-bottom:16px; }
+.score-box { text-align:center; }
+.score-val { font-family:'Space Grotesk',sans-serif; font-size:2.2rem; font-weight:700; line-height:1; }
+.score-lbl { font-size:0.75rem; color:#888; margin-top:3px; }
+.score-arrow { font-size:1.8rem; color:#198754; }
+
+.kw-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:16px; font-size:0.78rem; font-weight:600; margin:3px; }
+.kw-hard { background:#e3f0ff; color:#1a5276; }
+.kw-soft { background:#eafaf1; color:#145a32; }
+.kw-tool { background:#fef9e7; color:#7d6608; }
+.kw-other { background:#f0f2f5; color:#555; }
+
+.editor-wrap { position:relative; }
+textarea#resume-editor {
+    width:100%; min-height:520px; font-family:'Courier New',monospace; font-size:0.85rem;
+    line-height:1.65; border:1px solid #dde2e8; border-radius:12px; padding:16px;
+    resize:vertical; transition:border-color 0.2s;
+}
+textarea#resume-editor:focus { border-color:var(--semo-red); outline:none; box-shadow:0 0 0 3px rgba(200,16,46,0.1); }
+
+.ai-btn { background:linear-gradient(135deg,#c8102e,#8b0a1f); color:#fff; border:none;
+    font-weight:700; border-radius:10px; padding:12px 28px; font-size:0.95rem;
+    transition:all 0.2s; display:flex; align-items:center; gap:8px; }
+.ai-btn:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(200,16,46,0.3); color:#fff; }
+.ai-btn:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
+
+.loading-overlay { position:absolute; inset:0; background:rgba(255,255,255,0.92);
+    border-radius:12px; display:none; flex-direction:column; align-items:center;
+    justify-content:center; gap:12px; z-index:10; }
+.spinner { width:44px; height:44px; border:4px solid #f0f2f5; border-top-color:var(--semo-red);
+    border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.improvement-badge { display:inline-flex; align-items:center; gap:6px; padding:6px 14px;
+    border-radius:20px; font-weight:700; font-size:0.9rem; }
+.improved { background:#d1e7dd; color:#0a5e0a; }
+.same { background:#fff3cd; color:#856404; }
+
+.diff-highlight { background:#d1e7dd; border-radius:3px; }
+.section-tag { background:var(--semo-red); color:#fff; font-size:0.7rem; font-weight:700;
+    padding:1px 7px; border-radius:10px; margin-left:6px; }
+
+.step-bar { display:flex; gap:0; margin-bottom:24px; }
+.step { flex:1; text-align:center; padding:10px; font-size:0.8rem; font-weight:600;
+    color:#aaa; border-bottom:3px solid #eee; }
+.step.done { color:#198754; border-bottom-color:#198754; }
+.step.active { color:var(--semo-red); border-bottom-color:var(--semo-red); }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set score = r.score %}
+{% set sc_color = '#198754' if score >= 70 else '#fd7e14' if score >= 40 else '#dc3545' %}
+
+<!-- Header -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;" class="mb-1">
+            <i class="bi bi-magic me-2" style="color:var(--semo-red);"></i>AI Resume Optimizer
+        </h1>
+        <p class="text-muted mb-0">Rewrite your resume with AI to maximize your ATS match score</p>
+    </div>
+    <a href="{{ url_for('results') }}" class="btn btn-outline-semo">
+        <i class="bi bi-arrow-left me-1"></i>Back to Results
+    </a>
+</div>
+
+<!-- Step bar -->
+<div class="step-bar rf-card" style="border-radius:10px;overflow:hidden;">
+    <div class="step done">1. Analyzed</div>
+    <div class="step active">2. AI Rewrite</div>
+    <div class="step" id="step3">3. Download</div>
+</div>
+
+<div class="rewrite-wrap">
+<!-- ── LEFT PANEL ── -->
+<div class="left-panel">
+
+    <!-- Score comparison -->
+    <div class="score-compare mb-4">
+        <div class="score-box">
+            <div class="score-val" style="color:{{ sc_color }};" id="old-score">{{ score }}%</div>
+            <div class="score-lbl">Current Score</div>
+        </div>
+        <div class="score-arrow" id="arrow-area" style="opacity:0.3;">→</div>
+        <div class="score-box">
+            <div class="score-val text-success" id="new-score" style="opacity:0.3;">??%</div>
+            <div class="score-lbl">New Score</div>
+        </div>
+    </div>
+
+    <!-- Improvement badge (hidden until rewrite) -->
+    <div id="improvement-badge" class="text-center mb-4" style="display:none!important;"></div>
+
+    <!-- Missing keywords -->
+    <div class="rf-card p-3 mb-4">
+        <div class="fw-bold mb-2" style="font-size:0.85rem;font-family:'Space Grotesk',sans-serif;">
+            <i class="bi bi-bullseye me-1 text-danger"></i>Keywords AI will add
+        </div>
+        <div>
+            {% set missing_hard = r.missing_by_cat.get('hard_skill', []) %}
+            {% set missing_soft = r.missing_by_cat.get('soft_skill', []) %}
+            {% set missing_tool = r.missing_by_cat.get('tool', []) %}
+            {% for kw in missing_hard[:6] %}
+            <span class="kw-chip kw-hard">{{ kw }}</span>
+            {% endfor %}
+            {% for kw in missing_tool[:3] %}
+            <span class="kw-chip kw-tool">{{ kw }}</span>
+            {% endfor %}
+            {% for kw in missing_soft[:3] %}
+            <span class="kw-chip kw-soft">{{ kw }}</span>
+            {% endfor %}
+        </div>
+        <div class="mt-2 text-muted" style="font-size:0.75rem;">
+            Only keywords matching your actual experience will be added
+        </div>
+    </div>
+
+    <!-- What AI does -->
+    <div class="rf-card p-3 mb-4">
+        <div class="fw-bold mb-2" style="font-size:0.85rem;font-family:'Space Grotesk',sans-serif;">What the AI does</div>
+        {% for icon, text in [
+            ('bi-check2-circle text-success', 'Rewrites bullet points with missing keywords'),
+            ('bi-check2-circle text-success', 'Adds a Professional Summary if missing'),
+            ('bi-check2-circle text-success', 'Strengthens action verbs in bullets'),
+            ('bi-check2-circle text-success', 'Quantifies achievements where implied'),
+            ('bi-x-circle text-danger', 'Never fabricates jobs or experience'),
+            ('bi-x-circle text-danger', 'Never removes original content'),
+        ] %}
+        <div class="d-flex align-items-start gap-2 mb-1" style="font-size:0.82rem;">
+            <i class="bi {{ icon }}" style="margin-top:2px;flex-shrink:0;"></i>
+            <span>{{ text }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Download button (shown after rewrite) -->
+    <div id="download-section" style="display:none;">
+        <div class="rf-card p-3" style="background:linear-gradient(135deg,#1a1a1a,#2d1a1a);color:#fff;border:none;">
+            <div class="fw-bold mb-1" style="font-size:0.9rem;">✓ Resume Optimized!</div>
+            <div style="font-size:0.8rem;color:rgba(255,255,255,0.7);" class="mb-3">
+                Download your AI-refined resume as a professional PDF
+            </div>
+            <a href="{{ url_for('download_resume') }}" id="download-btn" class="btn btn-sm w-100"
+               style="background:var(--semo-red);color:#fff;font-weight:700;border:none;">
+                <i class="bi bi-file-earmark-pdf me-2"></i>Download PDF Resume
+            </a>
+            <a href="{{ url_for('analyze_page') }}" class="btn btn-sm w-100 mt-2"
+               style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);">
+                <i class="bi bi-graph-up me-1"></i>View New Score Report
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── RIGHT PANEL ── -->
+<div class="right-panel">
+    <div class="rf-card p-4">
+
+        <!-- Top controls -->
+        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <div>
+                <div class="fw-bold" style="font-family:'Space Grotesk',sans-serif;font-size:0.95rem;">
+                    Resume Editor
+                </div>
+                <div class="text-muted" style="font-size:0.78rem;" id="word-count"></div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-secondary" onclick="resetResume()" id="reset-btn">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset to Original
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="reanalyzeManual()" id="reanalyze-btn">
+                    <i class="bi bi-cpu me-1"></i>Re-score
+                </button>
+            </div>
+        </div>
+
+        <!-- AI rewrite button -->
+        <div class="text-center mb-3">
+            <button class="ai-btn mx-auto" onclick="runAIRewrite()" id="ai-btn">
+                <i class="bi bi-stars"></i>
+                AI Rewrite & Optimize Resume
+            </button>
+            <div class="text-muted mt-1" style="font-size:0.75rem;">
+                AI rewrites your original resume — result appears below after ~60 seconds
+            </div>
+        </div>
+
+        <!-- Editor with loading overlay -->
+        <div class="editor-wrap">
+            <div class="loading-overlay" id="loading-overlay">
+                <div class="spinner"></div>
+                <div class="fw-semibold" style="color:var(--semo-red);">AI is rewriting your resume...</div>
+                <div class="text-muted" style="font-size:0.82rem;" id="loading-msg">Analyzing keyword gaps</div>
+            </div>
+            <textarea id="resume-editor" spellcheck="true">{{ resume_text }}</textarea>
+        </div>
+
+        <!-- Toast notifications -->
+        <div id="toast-area" class="mt-2"></div>
+    </div>
+</div>
+</div>
+
+<!-- Ethical notice -->
+<div class="mt-4 p-3 rf-card" style="background:#fffbf0;border-left:4px solid #ffc107;border-radius:0 10px 10px 0;">
+    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+    <strong>Ethical Notice:</strong> The AI only adds keywords that are genuinely supported by your existing experience.
+    Always review the rewritten resume before submitting — you are responsible for the accuracy of your application.
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const originalResume = document.getElementById('resume-editor').value;
+
+function updateWordCount() {
+    const text = document.getElementById('resume-editor').value;
+    const words = text.trim().split(/\s+/).filter(Boolean).length;
+    document.getElementById('word-count').textContent = words + ' words';
+}
+
+document.getElementById('resume-editor').addEventListener('input', updateWordCount);
+updateWordCount();
+
+const loadingMessages = [
+    'Analyzing keyword gaps...',
+    'Rewriting bullet points...',
+    'Adding missing skills naturally...',
+    'Strengthening action verbs...',
+    'Optimizing for ATS systems...',
+    'Finalizing your resume...',
+];
+
+async function runAIRewrite() {
+    const btn = document.getElementById('ai-btn');
+    const overlay = document.getElementById('loading-overlay');
+    const msgEl = document.getElementById('loading-msg');
+
+    btn.disabled = true;
+    overlay.style.display = 'flex';
+
+    // Cycle loading messages
+    let msgIdx = 0;
+    const msgInterval = setInterval(() => {
+        msgIdx = (msgIdx + 1) % loadingMessages.length;
+        msgEl.textContent = loadingMessages[msgIdx];
+    }, 1800);
+
+    try {
+        const resp = await fetch('/rewrite', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        });
+        const data = await resp.json();
+        clearInterval(msgInterval);
+
+        if (data.error) {
+            showToast('error', data.error);
+            return;
+        }
+
+        // Show rewritten resume in a new read-only area below
+        let rewrittenArea = document.getElementById('rewritten-area');
+        if (!rewrittenArea) {
+            rewrittenArea = document.createElement('div');
+            rewrittenArea.id = 'rewritten-area';
+            rewrittenArea.innerHTML = `
+                <div class="mt-4 p-3" style="background:#f0fdf4;border:2px solid #10b981;border-radius:12px;">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="fw-bold" style="color:#065f46;font-family:'Space Grotesk',sans-serif;">
+                            <i class="bi bi-check-circle-fill me-2"></i>AI Rewritten Resume
+                        </div>
+                        <button onclick="copyRewritten()" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-clipboard me-1"></i>Copy
+                        </button>
+                    </div>
+                    <textarea id="rewritten-text" class="form-control" rows="20"
+                        style="font-family:monospace;font-size:0.82rem;line-height:1.6;"></textarea>
+                </div>`;
+            document.getElementById('resume-editor').closest('.rf-card').appendChild(rewrittenArea);
+        }
+        document.getElementById('rewritten-text').value = data.rewritten;
+        rewrittenArea.scrollIntoView({behavior:'smooth', block:'start'});
+        updateWordCount();
+
+        // Update score display
+        const improvement = data.new_score - data.old_score;
+        document.getElementById('old-score').textContent = data.old_score + '%';
+        document.getElementById('new-score').textContent = data.new_score + '%';
+        document.getElementById('new-score').style.opacity = '1';
+        document.getElementById('arrow-area').style.opacity = '1';
+
+        // Show improvement badge
+        const badge = document.getElementById('improvement-badge');
+        if (improvement > 0) {
+            badge.innerHTML = `<span class="improvement-badge improved">
+                <i class="bi bi-arrow-up-circle-fill"></i>
+                +${improvement}% improvement!
+            </span>`;
+        } else {
+            badge.innerHTML = `<span class="improvement-badge same">
+                Score: ${data.new_score}%
+            </span>`;
+        }
+        badge.style.display = 'block';
+
+        // Show download section
+        document.getElementById('download-section').style.display = 'block';
+        document.getElementById('step3').classList.add('active');
+
+        showToast('success', `✓ Rewrite complete! Score: ${data.old_score}% → ${data.new_score}%`);
+
+    } catch(e) {
+        clearInterval(msgInterval);
+        showToast('error', 'Network error. Check your connection and try again.');
+    } finally {
+        overlay.style.display = 'none';
+        btn.disabled = false;
+    }
+}
+
+async function reanalyzeManual() {
+    const text = document.getElementById('resume-editor').value.trim();
+    const btn = document.getElementById('reanalyze-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-cpu me-1"></i>Scoring...';
+
+    try {
+        const resp = await fetch('/reanalyze', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({resume_text: text})
+        });
+        const data = await resp.json();
+        if (data.error) { showToast('error', data.error); return; }
+
+        document.getElementById('new-score').textContent = data.new_score + '%';
+        document.getElementById('new-score').style.opacity = '1';
+        document.getElementById('arrow-area').style.opacity = '1';
+        document.getElementById('download-section').style.display = 'block';
+
+        const improvement = data.new_score - data.old_score;
+        showToast('success', `Score updated: ${data.old_score}% → ${data.new_score}% (${improvement >= 0 ? '+' : ''}${improvement}%)`);
+    } catch(e) {
+        showToast('error', 'Re-score failed.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cpu me-1"></i>Re-score';
+    }
+}
+
+function copyRewritten() {
+    const ta = document.getElementById('rewritten-text');
+    if (ta) {
+        navigator.clipboard.writeText(ta.value);
+        showToast('success', 'Rewritten resume copied to clipboard!');
+    }
+}
+
+function resetResume() {
+    if (confirm('Reset to your original uploaded resume?')) {
+        document.getElementById('resume-editor').value = originalResume;
+        document.getElementById('new-score').textContent = '??%';
+        document.getElementById('new-score').style.opacity = '0.3';
+        document.getElementById('arrow-area').style.opacity = '0.3';
+        document.getElementById('download-section').style.display = 'none';
+        document.getElementById('improvement-badge').style.display = 'none';
+        updateWordCount();
+    }
+}
+
+function showToast(type, msg) {
+    const area = document.getElementById('toast-area');
+    const t = document.createElement('div');
+    t.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show mt-2`;
+    t.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>${msg}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    area.appendChild(t);
+    setTimeout(() => t.remove(), 6000);
+}
+</script>
+{% endblock %}

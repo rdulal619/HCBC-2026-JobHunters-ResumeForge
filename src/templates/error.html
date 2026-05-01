@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Error {{ code }} — ResumeForge{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:5rem;font-weight:700;color:var(--semo-red);line-height:1;">{{ code }}</div>
+    <h2 class="mb-2 mt-2">{{ message }}</h2>
+    <p class="text-muted mb-4">Something went wrong. Let's get you back on track.</p>
+    <a href="{{ url_for('landing') }}" class="btn btn-primary-semo px-4">
+        <i class="bi bi-house me-2"></i>Back to Home
+    </a>
+    <a href="{{ url_for('analyze_page') }}" class="btn btn-outline-semo px-4 ms-2">
+        <i class="bi bi-lightning-charge me-2"></i>Try Again
+    </a>
+</div>
+{% endblock %}
