@@ -1,4 +1,4 @@
-# ResumeForge v2 — AI-Powered Resume Optimizer & Analyzer
+# ResumeForge  — AI-Powered Resume Optimizer & Analyzer
 
 [![CI / Tests & Lint](https://img.shields.io/badge/CI-passing-brightgreen)](https://github.com/your-org/resumeforge/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
